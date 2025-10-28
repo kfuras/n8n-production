@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "Readme.md"
       - "docker-compose.yml"
       - "secrets/production.env.enc"
       - "scripts/deploy.sh"
