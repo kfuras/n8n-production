@@ -55,7 +55,7 @@ Runs on a single Hetzner CCX23 (EUR 24.49/month) with 20 TB traffic included. En
 
 - GitOps workflow with repeatable, auditable deployments
 - Secrets encrypted at rest with SOPS + age
-- Pull-based deployments via cron and `scripts/deploy.sh`
+- GitHub Actions auto-deploy via self-hosted runner + `scripts/deploy.sh`
 - Traefik TLS everywhere plus optional IP allow listing (HOME_IP)
 - No plaintext secrets committed; `.env` is generated on deploy
 - Defense in depth with Docker networks and host firewall
@@ -77,7 +77,7 @@ _Never commit private keys or unencrypted `.env` files. Track only the encrypted
 ## Learn From This Repo
 
 1. SOPS workflows keep production secrets safe in a public repo.
-2. Cron-driven GitOps: push to main and servers update themselves.
+2. Self-hosted runner GitOps: merge to main → Actions redeploys automatically.
 3. Self-hosted versus SaaS cost model with real numbers.
 4. Production Docker patterns: networking, health checks, logging.
 
@@ -181,19 +181,13 @@ docker compose up -d
 shred -u .env
 ```
 
-### GitOps - Pull-Based Auto-Deploy
+### GitHub Actions Auto-Deploy
 
-The server keeps itself up to date via cron:
+Pushes to `main` flow through GitHub Actions:
 
-1. Push to `main` (public repo is fine; secrets remain encrypted).
-2. Cron runs `scripts/deploy.sh` every five minutes.
-3. The script decrypts `.env`, runs `docker compose pull` and `docker compose up`, then logs status to `deploy.log`.
-
-#### Crontab
-
-```
-*/5 * * * * /home/kaf/docker/n8n-stack/scripts/deploy.sh
-```
+1. `.github/workflows/trigger-deploy.yml` fires only when `docker-compose.yml`, `secrets/production.env.enc`, or `scripts/deploy.sh` change.
+2. That workflow dispatches a private repository workflow that runs on a self-hosted runner on the server.
+3. The runner executes `scripts/deploy.sh` with `FORCE_DEPLOY=1`, so the deploy runs even if the local clone already matches origin. Logs still land in `deploy.log`.
 
 #### `scripts/deploy.sh` (Excerpt)
 
@@ -213,10 +207,15 @@ git fetch origin main
 LOCAL=$(git rev-parse HEAD)
 REMOTE=$(git rev-parse origin/main)
 
-if [ "$LOCAL" = "$REMOTE" ]; then
+FORCE_DEPLOY=${FORCE_DEPLOY:-0}
+WATCHED_FILES=("docker-compose.yml" "secrets/production.env.enc" "scripts/deploy.sh")
+
+if [ "$LOCAL" = "$REMOTE" ] && [ "$FORCE_DEPLOY" != "1" ]; then
     log "Already up to date"
     exit 0
 fi
+
+# ...detects if any watched file changed upstream or FORCE_DEPLOY is set...
 
 log "Decrypting secrets..."
 sops -d secrets/production.env.enc > .env
