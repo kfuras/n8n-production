@@ -1,5 +1,5 @@
 # n8n Production Stack with Self-Hosted AI Toolkit
-
+# Test to trigger deployment
 This is my actual production n8n + AI infrastructure. Clone it as a template to run the same stack with your own credentials.
 
 Production-proven automation stack with encrypted GitOps workflows. Run n8n plus supporting AI services on a single Hetzner VPS with safe, reproducible deployments.
