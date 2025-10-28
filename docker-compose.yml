@@ -1,0 +1,154 @@
+volumes:
+  n8n_core_storage:
+  postgres_core_storage:
+  traefik_data:
+  minio_data:
+
+networks:
+  n8n-core-net:
+    name: n8n-core-net
+
+services:
+  traefik:
+    image: traefik:v3.4.0
+    container_name: traefik
+    restart: always
+    networks: ['n8n-core-net']
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.le.acme.tlschallenge=true"
+      - "--certificatesresolvers.le.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - traefik_data:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    restart: unless-stopped
+    networks: ['n8n-core-net']
+    volumes:
+      - minio_data:/data
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    labels:
+      - "traefik.enable=true"
+      # MinIO Console (Web UI on port 9001)
+      - "traefik.http.routers.minio-console.rule=Host(`${MINIO_CONSOLE_HOST}`)"
+      - "traefik.http.routers.minio-console.entrypoints=websecure"
+      - "traefik.http.routers.minio-console.tls.certresolver=le"
+      - "traefik.http.routers.minio-console.service=minio-console"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+      - "traefik.http.routers.minio-console.middlewares=minio-ipwhitelist"
+      - "traefik.http.middlewares.minio-ipwhitelist.ipwhitelist.sourcerange=${HOME_IP}/32"
+
+      # MinIO S3 API (port 9000)
+      - "traefik.http.routers.minio-api.rule=Host(`${MINIO_API_HOST}`)"
+      - "traefik.http.routers.minio-api.entrypoints=websecure"
+      - "traefik.http.routers.minio-api.tls.certresolver=le"
+      - "traefik.http.routers.minio-api.service=minio-api"
+      - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
+
+  nca-toolkit:
+    image: stephengpope/no-code-architects-toolkit:latest
+    container_name: nca-toolkit
+    restart: unless-stopped
+    networks: ['n8n-core-net']
+    environment:
+      - API_KEY=${NCA_API_KEY}
+      - S3_ENDPOINT_URL=https://${MINIO_API_HOST}
+      - S3_ACCESS_KEY=${NCA_S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${NCA_S3_SECRET_KEY}
+      - S3_BUCKET_NAME=nca-toolkit
+      - S3_REGION=None
+      - MAX_QUEUE_LENGTH=3
+      - GUNICORN_WORKERS=2
+      - GUNICORN_TIMEOUT=600
+    cpus: 2
+    mem_limit: '4g'
+    depends_on:
+      - minio
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nca.rule=Host(`${NCA_HOST}`)"
+      - "traefik.http.routers.nca.entrypoints=websecure"
+      - "traefik.http.routers.nca.tls.certresolver=le"
+      - "traefik.http.services.nca.loadbalancer.server.port=8080"
+
+  kokoro-tts-cpu:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:v0.2.2
+    container_name: kokoro-tts-cpu
+    networks: ['n8n-core-net']
+    restart: unless-stopped
+    # Kokoro is internal only - no Traefik labels
+
+  postgres-core:
+    image: postgres:16-alpine
+    hostname: postgres-core
+    networks: ['n8n-core-net']
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres_core_storage:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  n8n-core:
+    image: n8nio/n8n:latest
+    hostname: n8n-core
+    container_name: n8n-core
+    restart: unless-stopped
+    networks: ['n8n-core-net']
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres-core
+      - DB_POSTGRESDB_USER=${POSTGRES_USER}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_USER_MANAGEMENT_JWT_SECRET=${N8N_USER_MANAGEMENT_JWT_SECRET}
+      - WEBHOOK_URL=https://${N8N_WEBHOOK}
+      - N8N_HOST=${N8N_HOST}
+      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL}
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+    volumes:
+      - n8n_core_storage:/home/node/.n8n
+      - ./n8n-core/backup:/backup
+      - ./shared:/data/shared
+    depends_on:
+      postgres-core:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n-ui.rule=Host(`${N8N_HOST}`)"
+      - "traefik.http.routers.n8n-ui.entrypoints=websecure"
+      - "traefik.http.routers.n8n-ui.tls.certresolver=le"
+      - "traefik.http.routers.n8n-webhooks.rule=Host(`${N8N_WEBHOOK}`)"
+      - "traefik.http.routers.n8n-webhooks.entrypoints=websecure"
+      - "traefik.http.routers.n8n-webhooks.tls.certresolver=le"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"

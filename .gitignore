@@ -1,0 +1,19 @@
+# NEVER commit unencrypted secrets
+.env
+secrets/production.env
+
+# Allow encrypted files
+!secrets/*.enc
+!secrets/*.example
+
+# Runtime data
+n8n-core/.n8n/*
+n8n-core/backup/*
+shared/*
+deploy.log
+
+# Backups
+*.backup*
+
+# OS files
+.DS_Store
