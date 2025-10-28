@@ -10,15 +10,6 @@ networks:
     name: n8n-core-net
 
 services:
-  cloudflared-deploy:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflared-deploy
-    restart: always
-    networks: ['n8n-core-net']
-    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
-    environment:
-      - TUNNEL_TRANSPORT_PROTOCOL=http2
-
   traefik:
     image: traefik:v3.4.0
     container_name: traefik
