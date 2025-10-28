@@ -21,7 +21,28 @@ if [ "$LOCAL" = "$REMOTE" ]; then
     exit 0
 fi
 
-log "Changes detected, pulling..."
+CHANGED_FILES=$(git diff --name-only "$LOCAL" "$REMOTE")
+WATCHED_FILES=("docker-compose.yml" "secrets/production.env.enc" "scripts/deploy.sh")
+NEEDS_DEPLOY=false
+
+for file in "${WATCHED_FILES[@]}"; do
+    if grep -Fxq "$file" <<<"$CHANGED_FILES"; then
+        NEEDS_DEPLOY=true
+        break
+    fi
+done
+
+if [ "$NEEDS_DEPLOY" = false ]; then
+    WATCH_LIST=$(printf "%s, " "${WATCHED_FILES[@]}")
+    WATCH_LIST=${WATCH_LIST%, }
+    log "No changes in watched files (${WATCH_LIST}). Fast-forwarding without deployment."
+    git pull origin main 2>&1 | tee -a "$LOG_FILE"
+    log "===== Sync complete, deployment skipped ====="
+    exit 0
+fi
+
+log "Relevant changes detected: $(echo "$CHANGED_FILES" | tr '\n' ' ')"
+log "Pulling latest changes..."
 git pull origin main 2>&1 | tee -a "$LOG_FILE"
 
 log "Decrypting secrets..."
