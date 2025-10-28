@@ -31,11 +31,11 @@ All external traffic terminates at Traefik v3 with automatic TLS certificates an
 | Storage (AWS S3) **       | \$23+             | \$0 (MinIO)       | \$23+           |
 | Automation (Zapier) **    | \$20-$600         | \$0 (n8n)         | \$20-$600       |
 | Video processing (API) ** | \$15-$250         | \$0 (NCA Toolkit) | \$15-$250       |
-| **Total**                 | **\$80-$1,480/mo**| **EUR 20/mo**     | **\$60-$1,460/mo** |
+| **Total**                 | **\$80-$1,480/mo**| **EUR 24.49/mo**  | **\$55.51-$1,455.51/mo** |
 
 _Indicative SaaS figures reflect commonly advertised mid-tier plans. Actual savings depend on usage._
 
-Runs on a single Hetzner CPX21 (about EUR 20/month). Bandwidth, snapshots, and backups are not included in the estimate.
+Runs on a single Hetzner CCX23 (EUR 24.49/month) with 20 TB traffic included. Enabling Hetzner backups adds 20% of the instance price (about EUR 4.90 extra).
 
 ---
 
