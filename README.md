@@ -186,7 +186,7 @@ Pushes to `main` flow through GitHub Actions:
 
 1. `.github/workflows/trigger-deploy.yml` fires only when `docker-compose.yml`, `secrets/production.env.enc`, or `scripts/deploy.sh` change.
 2. That workflow dispatches a private repository workflow that runs on a self-hosted runner on the server.
-3. The dispatch includes the latest commit message (prefixed with the short SHA) as `deployment_name`. The private workflow runs `scripts/deploy.sh` with `FORCE_DEPLOY=1`, so the deploy happens even if the local clone already matches origin. Logs still land in `deploy.log`.
+3. The dispatch includes the latest commit message (fallback: short SHA) as `deployment_name`. The private workflow runs `scripts/deploy.sh` with `FORCE_DEPLOY=1`, so the deploy happens even if the local clone already matches origin. Logs still land in `deploy.log`.
 
 #### `scripts/deploy.sh` (Excerpt)
 

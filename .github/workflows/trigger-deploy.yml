@@ -22,7 +22,10 @@ jobs:
           SHORT_SHA=$(printf '%.7s' "$GITHUB_SHA")
           # Collapse whitespace/newlines to produce a single-line label
           CLEAN_MSG=$(echo "$COMMIT_MSG" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | sed 's/^ //; s/ $//')
-          DEPLOY_NAME=$(printf '%s %s' "$SHORT_SHA" "$CLEAN_MSG" | cut -c1-120)
+          if [ -z "$CLEAN_MSG" ]; then
+            CLEAN_MSG="Deploy $SHORT_SHA"
+          fi
+          DEPLOY_NAME=$(printf '%s' "$CLEAN_MSG" | cut -c1-120)
 
           PAYLOAD=$(jq -n \
             --arg ref "$TARGET_REF" \
