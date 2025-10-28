@@ -16,9 +16,21 @@ jobs:
       - name: Call private workflow
         env:
           PAT: ${{ secrets.N8N_DEPLOY_PAT }}   # personal access token with repo scope
+          TARGET_REF: main
         run: |
+          COMMIT_MSG=$(jq -r '.head_commit.message // ""' "$GITHUB_EVENT_PATH")
+          SHORT_SHA=$(printf '%.7s' "$GITHUB_SHA")
+          # Collapse whitespace/newlines to produce a single-line label
+          CLEAN_MSG=$(echo "$COMMIT_MSG" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | sed 's/^ //; s/ $//')
+          DEPLOY_NAME=$(printf '%s %s' "$SHORT_SHA" "$CLEAN_MSG" | cut -c1-120)
+
+          PAYLOAD=$(jq -n \
+            --arg ref "$TARGET_REF" \
+            --arg name "$DEPLOY_NAME" \
+            '{ref: $ref, inputs: {ref: $ref, deployment_name: $name}}')
+
           curl -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: token ${PAT}" \
             https://api.github.com/repos/kfuras/n8n-deploy/actions/workflows/deploy.yml/dispatches \
-            -d '{"ref":"main","inputs":{"ref":"main"}}'
+            -d "$PAYLOAD"
