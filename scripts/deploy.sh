@@ -21,29 +21,40 @@ if [ "$LOCAL" = "$REMOTE" ]; then
     exit 0
 fi
 
-CHANGED_FILES=$(git diff --name-only "$LOCAL" "$REMOTE")
-WATCHED_FILES=("docker-compose.yml" "secrets/production.env.enc" "scripts/deploy.sh")
-NEEDS_DEPLOY=false
+if git merge-base --is-ancestor "$LOCAL" "$REMOTE"; then
+    CHANGED_FILES=$(git diff --name-only "$LOCAL..$REMOTE")
+    WATCHED_FILES=("docker-compose.yml" "secrets/production.env.enc" "scripts/deploy.sh")
+    NEEDS_DEPLOY=false
 
-for file in "${WATCHED_FILES[@]}"; do
-    if grep -Fxq "$file" <<<"$CHANGED_FILES"; then
-        NEEDS_DEPLOY=true
-        break
+    for file in "${WATCHED_FILES[@]}"; do
+        if grep -Fxq "$file" <<<"$CHANGED_FILES"; then
+            NEEDS_DEPLOY=true
+            break
+        fi
+    done
+
+    if [ "$NEEDS_DEPLOY" = false ]; then
+        WATCH_LIST=$(printf "%s, " "${WATCHED_FILES[@]}")
+        WATCH_LIST=${WATCH_LIST%, }
+        CHANGED_LIST=$(printf "%s, " $CHANGED_FILES)
+        CHANGED_LIST=${CHANGED_LIST%, }
+        log "Remote ahead but watched files unchanged. Changed files: ${CHANGED_LIST:-<none>}. Watched: ${WATCH_LIST}."
+        git pull --ff-only origin main 2>&1 | tee -a "$LOG_FILE"
+        log "===== Sync complete, deployment skipped ====="
+        exit 0
     fi
-done
 
-if [ "$NEEDS_DEPLOY" = false ]; then
-    WATCH_LIST=$(printf "%s, " "${WATCHED_FILES[@]}")
-    WATCH_LIST=${WATCH_LIST%, }
-    log "No changes in watched files (${WATCH_LIST}). Fast-forwarding without deployment."
-    git pull origin main 2>&1 | tee -a "$LOG_FILE"
-    log "===== Sync complete, deployment skipped ====="
+    log "Relevant changes detected: $(echo "$CHANGED_FILES" | tr '\n' ' ')"
+    log "Pulling latest changes..."
+    git pull --ff-only origin main 2>&1 | tee -a "$LOG_FILE"
+
+elif git merge-base --is-ancestor "$REMOTE" "$LOCAL"; then
+    log "Local branch is ahead of origin/main. Push your changes or sync manually."
     exit 0
+else
+    log "Local and origin/main have diverged. Manual intervention required."
+    exit 1
 fi
-
-log "Relevant changes detected: $(echo "$CHANGED_FILES" | tr '\n' ' ')"
-log "Pulling latest changes..."
-git pull origin main 2>&1 | tee -a "$LOG_FILE"
 
 log "Decrypting secrets..."
 sops -d secrets/production.env.enc > .env
