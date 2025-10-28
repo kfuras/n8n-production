@@ -1,170 +1,295 @@
-# Production n8n Stack with Self-Hosted AI Tools
+# n8n Production Stack with Self-Hosted AI Toolkit
 
-> **Real production infrastructure** running my AI automation workflows.  
-> GitOps deployment with encrypted secrets - safe for public repos.
+This is my actual production n8n + AI infrastructure. Clone it as a template to run the same stack with your own credentials.
 
-[![Deploy](https://github.com/kjetilfuras/n8n-production-stack/actions/workflows/deploy.yml/badge.svg)](https://github.com/kjetilfuras/n8n-production-stack/actions)
-
-## 🏗️ Architecture
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Traefik    │────▶│     n8n      │────▶│  PostgreSQL  │
-│  (Reverse    │     │  (Workflows) │     │  (Database)  │
-│   Proxy)     │     └──────────────┘     └──────────────┘
-└──────────────┘            │
-       │                    ├────▶ Kokoro TTS (Self-hosted)
-       │                    ├────▶ MinIO (S3-compatible)
-       │                    ├────▶ NCA Toolkit (Video processing)
-       │                    └────▶ Baserow (Airtable alternative)
-       │
-    HTTPS (Let's Encrypt)
-```
-
-## 💰 Cost Comparison
-
-| Service | SaaS Monthly Cost | Self-Hosted | Savings |
-|---------|------------------|-------------|---------|
-| **TTS** (ElevenLabs/OpenAI) | $22-330 | $0 (Kokoro) | $22-330 |
-| **Storage** (AWS S3) | $23+ | $0 (MinIO) | $23+ |
-| **Database** (Airtable) | $20+ | $0 (Baserow) | $20+ |
-| **Automation** (Zapier) | $20-600 | $0 (n8n) | $20-600 |
-| **Total** | **$85-973/mo** | **€20/mo** | **$65-953/mo** |
-
-*Running on a single Hetzner VPS (CPX21): €20/month*
-
-## 🚀 Tech Stack
-
-- **[n8n](https://n8n.io)** - Workflow automation (self-hosted Zapier alternative)
-- **[Traefik v3](https://traefik.io)** - Reverse proxy with automatic HTTPS
-- **[PostgreSQL 16](https://www.postgresql.org)** - Database
-- **[MinIO](https://min.io)** - S3-compatible object storage
-- **[Kokoro TTS](https://github.com/remsky/kokoro-fastapi)** - Self-hosted text-to-speech
-- **[NCA Toolkit](https://github.com/No-Code-Architects)** - FFmpeg-based video processing
-- **[Baserow](https://baserow.io)** - Self-hosted database UI
-- **[SOPS](https://github.com/mozilla/sops)** - Secret encryption with age
-
-## 🔐 Security Features
-
-- **GitOps**: Infrastructure as Code with full git history
-- **Encrypted Secrets**: SOPS encryption (safe for public repos)
-- **Automated Deployments**: GitHub Actions CI/CD pipeline
-- **Zero-Trust Networking**: Traefik with TLS, IP whitelisting
-- **Layered Firewall**: Hetzner Cloud Firewall + UFW + Docker networks
-- **Secret Rotation**: Change secrets via git, auto-deploys
-
-## 📖 What I Use This For
-
-This is my **actual production environment**, not a demo:
-
-- 🎥 Automated video content creation for YouTube
-- 🤖 AI-powered Telegram assistant
-- 📧 Email and calendar automation
-- 📊 Data processing workflows
-- 🎙️ Text-to-speech generation (300+ requests/day)
-
-## 🎓 Learn From This Repo
-
-### Key Concepts Demonstrated
-
-1. **[Secrets in Public Repos](docs/sops-encryption.md)** - How to safely encrypt secrets with SOPS
-2. **[GitOps Deployment](docs/gitops-workflow.md)** - Push to GitHub → Auto-deploy to production
-3. **[Self-Hosted vs Cloud](docs/cost-analysis.md)** - Real cost comparison with usage data
-4. **[Production Docker](docs/docker-networking.md)** - Networking, security, and best practices
-
-## ⚡ Quick Start
-
-### Prerequisites
-
-- Ubuntu/Debian server
-- Docker & Docker Compose installed
-- Domain with DNS pointing to your server
-
-### Deploy
-```bash
-# Clone repo
-git clone https://github.com/kfuras/n8n-production.git -o n8n-stack
-cd n8n-stack
-
-# Install SOPS
-wget https://github.com/mozilla/sops/releases/latest/download/sops-linux-amd64
-sudo mv sops-linux-amd64 /usr/local/bin/sops
-sudo chmod +x /usr/local/bin/sops
-
-# Create your secrets (copy example and edit)
-cp secrets/production.env.example secrets/production.env
-nano secrets/production.env
-
-# Generate age key for encryption
-age-keygen -o ~/.config/sops/age/keys.txt
-
-# Update .sops.yaml with your public key
-nano .sops.yaml
-
-# Encrypt your secrets
-sops --encrypt --input-type binary secrets/production.env > secrets/production.env.enc
-rm secrets/production.env
-
-# Deploy
-docker compose up -d
-```
-
-## 🔄 GitOps Workflow
-
-### Change Secrets
-```bash
-# Edit encrypted secrets (auto-decrypts, then re-encrypts)
-sops --input-type binary --output-type binary secrets/production.env.enc
-
-# Commit and push
-git add secrets/production.env.enc
-git commit -m "rotate: Update MinIO password"
-git push  # Automatically deploys to production!
-```
-
-### Change Infrastructure
-```bash
-# Edit docker-compose.yml
-nano docker-compose.yml
-
-# Deploy
-git add docker-compose.yml
-git commit -m "feat: Add Redis service"
-git push  # Automatically deploys!
-```
-
-### Rollback
-```bash
-git log --oneline
-git revert abc123
-git push  # Automatically rolls back!
-```
-
-## 📊 Monitoring & Logs
-```bash
-# View all services
-docker compose ps
-
-# Stream logs
-docker compose logs -f n8n-core
-
-# Deployment history
-tail -f deploy.log
-```
-
-## 📝 License
-
-MIT - Feel free to use this as a template for your own infrastructure!
-
-## 🔗 Links
-
-- **Blog**: [kjetilfuras.com](https://kjetilfuras.com)
-- **LinkedIn**: [Kjetil Furås](https://www.linkedin.com/in/kjetil-furas/)
+Production-proven automation stack with encrypted GitOps workflows. Run n8n plus supporting AI services on a single Hetzner VPS with safe, reproducible deployments.
 
 ---
 
-**Built with ❤️ by [Kjetil Furås](https://kjetilfuras.com)**
+## Architecture
 
-*Questions? Open an issue or reach out on LinkedIn!*
-###
-Test Deployment
-###
+```text
+          +-----------+        +-----------+
+ HTTPS -->|  Traefik  | -----> |    n8n    |
+          +-----------+        +-----+-----+
+                                      |
+                                      +--> PostgreSQL 16 (state)
+                                      +--> MinIO (S3-compatible storage)
+                                      +--> Kokoro TTS (self-hosted voice)
+                                      +--> NCA Toolkit (video processing)
+```
+
+All external traffic terminates at Traefik v3 with automatic TLS certificates and per-service access control.
+
+---
+
+## Cost Comparison (Indicative)
+
+| Service                   | SaaS Monthly Cost | Self-Hosted      | Est. Savings    |
+|---------------------------|-------------------|------------------|-----------------|
+| TTS (ElevenLabs/OpenAI)   | \$22-$330         | \$0 (Kokoro)      | \$22-$330       |
+| Storage (AWS S3) **       | \$23+             | \$0 (MinIO)       | \$23+           |
+| Automation (Zapier) **    | \$20-$600         | \$0 (n8n)         | \$20-$600       |
+| Video processing (API) ** | \$15-$250         | \$0 (NCA Toolkit) | \$15-$250       |
+| **Total**                 | **\$80-$1,480/mo**| **EUR 20/mo**     | **\$60-$1,460/mo** |
+
+_Indicative SaaS figures reflect commonly advertised mid-tier plans. Actual savings depend on usage._
+
+Runs on a single Hetzner CPX21 (about EUR 20/month). Bandwidth, snapshots, and backups are not included in the estimate.
+
+---
+
+## Tech Stack
+
+- n8n: workflow automation (Zapier alternative)
+- Traefik v3: reverse proxy with ACME TLS and IP allow lists
+- PostgreSQL 16: durable workflow state
+- MinIO: S3-compatible object storage
+- Kokoro TTS: self-hosted text-to-speech API
+- NCA Toolkit: FFmpeg-based video rendering API
+- SOPS + age: reproducible, encrypted secrets
+
+---
+
+## Security Features
+
+- GitOps workflow with repeatable, auditable deployments
+- Secrets encrypted at rest with SOPS + age
+- Pull-based deployments via cron and `scripts/deploy.sh`
+- Traefik TLS everywhere plus optional IP allow listing (HOME_IP)
+- No plaintext secrets committed; `.env` is generated on deploy
+- Defense in depth with Docker networks and host firewall
+
+_Never commit private keys or unencrypted `.env` files. Track only the encrypted blob._
+
+---
+
+## Use Cases
+
+- Automated video content creation
+- AI-powered Telegram assistant
+- Email and calendar automations
+- Batch data processing
+- High-volume text-to-speech (300+ requests/day)
+
+---
+
+## Learn From This Repo
+
+1. SOPS workflows keep production secrets safe in a public repo.
+2. Cron-driven GitOps: push to main and servers update themselves.
+3. Self-hosted versus SaaS cost model with real numbers.
+4. Production Docker patterns: networking, health checks, logging.
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Ubuntu or Debian host with DNS pointing at your server
+- Docker Engine and Docker Compose v2
+- `age` and `sops` installed locally
+- Recommended: Hetzner Cloud firewall and automated OS updates
+
+### Install Tooling
+
+```bash
+sudo apt-get update
+sudo apt-get install -y docker.io docker-compose-plugin age
+
+wget https://github.com/mozilla/sops/releases/latest/download/sops-linux-amd64 -O sops
+sudo install -m 0755 sops /usr/local/bin/sops
+rm sops
+```
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/kfuras/n8n-production.git
+cd n8n-production
+```
+
+### First-Time Secrets Setup
+
+1. Copy the example env file and create a local `.env`.
+
+   ```bash
+   cp secrets/production.env.example .env
+   nano .env
+   ```
+
+2. Fill in every value (hostnames, passwords, HOME_IP, and so on) and keep the file private on the server.
+
+### Required Secrets
+
+- `POSTGRES_*`, `N8N_*`, and `GENERIC_TIMEZONE` for n8n
+- `ACME_EMAIL` for Traefik certificates
+- `MINIO_*` credentials and hostnames
+- `NCA_*` API keys for the toolkit
+- `HOME_IP` for the MinIO console IP allow list
+
+> Want to track secrets in git and let the server auto-deploy? Jump to [Advanced: GitOps + Encrypted Secrets (SOPS)](#advanced-gitops--encrypted-secrets-sops).
+
+### One-Time Traefik ACME Setup
+
+Ensure the hostnames in `secrets/production.env.example` resolve to your server and that `ACME_EMAIL` is set before the first run. Traefik will request and renew certificates automatically.
+
+### Manual Deploy
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Your `.env` now contains production secrets; lock down file permissions and rotate values regularly.
+
+---
+
+## Advanced: GitOps + Encrypted Secrets (SOPS)
+
+Set this up when you want hands-off deployments and encrypted secrets committed to the repo.
+
+### Configure SOPS for Encrypted Secrets
+
+1. Generate an age key pair (store `keys.txt` safely and never commit it).
+
+   ```bash
+   mkdir -p ~/.config/sops/age
+   age-keygen -o ~/.config/sops/age/keys.txt
+   chmod 600 ~/.config/sops/age/keys.txt
+   ```
+
+2. Add the public key (the line starting with `age1`) to your local SOPS config. Update `.sops.yaml` if you fork this repo and want to use a different recipient.
+
+3. Create `secrets/production.env` by copying your `.env`, then encrypt it.
+
+   ```bash
+   cp .env secrets/production.env
+   sops --encrypt secrets/production.env > secrets/production.env.enc
+   shred -u secrets/production.env
+   ```
+
+4. Commit `secrets/production.env.enc` to git so the server can pull it. `.env` stays ignored and is generated at deploy time.
+
+When deploying manually with SOPS, decrypt before running compose:
+
+```bash
+export SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt
+sops -d secrets/production.env.enc > .env
+docker compose up -d
+shred -u .env
+```
+
+### GitOps - Pull-Based Auto-Deploy
+
+The server keeps itself up to date via cron:
+
+1. Push to `main` (public repo is fine; secrets remain encrypted).
+2. Cron runs `scripts/deploy.sh` every five minutes.
+3. The script decrypts `.env`, runs `docker compose pull` and `docker compose up`, then logs status to `deploy.log`.
+
+#### Crontab
+
+```
+*/5 * * * * /home/kaf/docker/n8n-stack/scripts/deploy.sh
+```
+
+#### `scripts/deploy.sh` (Excerpt)
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+REPO_DIR="/home/kaf/docker/n8n-stack"
+LOG_FILE="/home/kaf/docker/n8n-stack/deploy.log"
+
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
+
+log "Checking for updates..."
+git fetch origin main
+LOCAL=$(git rev-parse HEAD)
+REMOTE=$(git rev-parse origin/main)
+
+if [ "$LOCAL" = "$REMOTE" ]; then
+    log "Already up to date"
+    exit 0
+fi
+
+log "Decrypting secrets..."
+sops -d secrets/production.env.enc > .env
+
+log "Deploying containers..."
+docker compose pull
+docker compose up -d --remove-orphans
+```
+
+---
+
+## Day-to-Day Operations
+
+### Rotate or Add Secrets
+
+```bash
+sops secrets/production.env.enc
+git add secrets/production.env.enc
+git commit -m "chore: rotate secrets"
+git push
+```
+
+### Modify Infrastructure
+
+```bash
+nano docker-compose.yml
+git add docker-compose.yml
+git commit -m "feat: update stack"
+git push
+```
+
+### Roll Back
+
+```bash
+git log --oneline
+git revert <sha>
+git push
+```
+
+---
+
+## Monitoring and Logs
+
+```bash
+docker compose ps            # Service status
+docker compose logs -f n8n-core
+tail -f deploy.log           # Cron deploy history
+```
+
+---
+
+## Production Hardening Checklist
+
+- Restrict SSH access (keys only, IP allow list)
+- Enable UFW; allow 80/443 and limit SSH to trusted IPs
+- Keep Postgres, MinIO, and NCA internal-only via Docker networks
+- Set up Hetzner snapshots and off-site backups
+- Rotate secrets regularly and re-deploy
+- Enable MinIO bucket versioning and lifecycle policies
+
+---
+
+## License
+
+MIT - make it your own.
+
+---
+
+## Links
+
+- Blog: https://kjetilfuras.com
+- LinkedIn: https://www.linkedin.com/in/kjetil-furas/
+
+---
+
+Built by Kjetil Furås. Questions? Open an issue or reach out on LinkedIn.
