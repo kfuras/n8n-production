@@ -11,18 +11,18 @@ log() {
 log "===== Starting deployment ====="
 cd "$REPO_DIR"
 
-# Optional: Only fetch/pull if not already latest (for manual runs)
-if [ "${GITHUB_ACTIONS:-false}" != "true" ]; then
-    log "Updating from git..."
-    git fetch origin main 2>&1 | tee -a "$LOG_FILE"
-    LOCAL=$(git rev-parse HEAD)
-    REMOTE=$(git rev-parse origin/main)
+log "Checking for updates..."
+git fetch origin main 2>&1 | tee -a "$LOG_FILE"
+LOCAL=$(git rev-parse HEAD)
+REMOTE=$(git rev-parse origin/main)
 
-    if [ "$LOCAL" != "$REMOTE" ]; then
-        log "Changes detected, pulling..."
-        git pull origin main 2>&1 | tee -a "$LOG_FILE"
-    fi
+if [ "$LOCAL" = "$REMOTE" ]; then
+    log "Already up to date"
+    exit 0
 fi
+
+log "Changes detected, pulling..."
+git pull origin main 2>&1 | tee -a "$LOG_FILE"
 
 log "Decrypting secrets..."
 sops -d secrets/production.env.enc > .env
