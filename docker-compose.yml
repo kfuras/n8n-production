@@ -5,6 +5,7 @@ volumes:
   traefik_data:
   traefik_logs:
   minio_data:
+  baserow_data:
 
 networks:
   n8n-core-net:
@@ -39,6 +40,22 @@ services:
       - traefik_data:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik_logs:/var/log/traefik
+
+  baserow:
+    container_name: baserow
+    image: baserow/baserow:1.35.3
+    environment:
+      BASEROW_PUBLIC_URL: 'https://${BASEROW_HOST}'
+    volumes:
+      - baserow_data:/baserow/data
+    restart: unless-stopped
+    networks: ['n8n-core-net']
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.baserow.rule=Host(`${BASEROW_HOST}`)"
+      - "traefik.http.routers.baserow.entrypoints=websecure"
+      - "traefik.http.routers.baserow.tls.certresolver=le"
+      - "traefik.http.services.baserow.loadbalancer.server.port=80"
 
   minio:
     image: quay.io/minio/minio
