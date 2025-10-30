@@ -1,9 +1,7 @@
-# this is a test comment!!!
 volumes:
   n8n_core_storage:
   postgres_core_storage:
   traefik_data:
-  traefik_logs:
   minio_data:
   baserow_data:
 
@@ -28,18 +26,14 @@ services:
       - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
       # Enable access logging
       - "--accesslog=true"
-      - "--accesslog.filepath=/var/log/traefik/access.log"
-      - "--accesslog.bufferingsize=100"
       # Enable error logging
       - "--log.level=INFO"
-      - "--log.filepath=/var/log/traefik/traefik.log"
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - traefik_data:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik_logs:/var/log/traefik
 
   baserow:
     container_name: baserow
