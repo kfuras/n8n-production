@@ -292,7 +292,7 @@ MIT - make it your own.
 
 Built by Kjetil Furås. Questions? Open an issue or reach out on LinkedIn.
 
-⸻
+---
 
 🔧 Environment Setup (docker compose without sops/age)
 
@@ -340,6 +340,3 @@ Changing it later requires re-entering credentials or export/import.
 
 docker compose pull
 docker compose up -d
-
-
-⸻
