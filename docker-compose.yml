@@ -62,19 +62,19 @@ services:
     restart: unless-stopped
     networks: ['n8n-core-net']
     volumes:
-      - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
-      - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z
-      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
-      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
-      - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql:Z
-      - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
-      - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
+      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/01-roles.sql:Z
+      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/02-jwt.sql:Z
+      - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/03-_supabase.sql:Z
+      - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/04-realtime.sql:Z
+      - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/05-webhooks.sql:Z
+      - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/06-logs.sql:Z
+      - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/07-pooler.sql:Z
       - supabase_db_data:/var/lib/postgresql/data:Z
       - db-config:/etc/postgresql-custom
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      PGPORT: ${POSTGRES_PORT}
+      POSTGRES_PASSWORD: ${SUPABASE_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${SUPABASE_POSTGRES_DB}
+      PGPORT: ${SUPABASE_POSTGRES_PORT}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXP: ${JWT_EXPIRY}
     healthcheck:
@@ -89,7 +89,7 @@ services:
     restart: unless-stopped
     networks: ['n8n-core-net']
     environment:
-      - NC_DB=pg://supabase-db:${POSTGRES_PORT}?u=postgres&p=${POSTGRES_PASSWORD}&d=${POSTGRES_DB}
+      - NC_DB=pg://supabase-db:${SUPABASE_POSTGRES_PORT}?u=postgres&p=${SUPABASE_POSTGRES_PASSWORD}&d=${SUPABASE_POSTGRES_DB}
       - NC_PUBLIC_URL=https://${NOCODB_HOST}
       - NC_DISABLE_TELE=true
     volumes:
