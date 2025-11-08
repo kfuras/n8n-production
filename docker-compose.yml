@@ -3,9 +3,10 @@ volumes:
   postgres_core_storage:
   traefik_data:
   minio_data:
-  baserow_data:
+  #baserow_data:
   nocodb_data:
-  nocodb_postgres_data:
+  supabase_db_data:
+  #nocodb_postgres_data:
 
 networks:
   n8n-core-net:
@@ -37,19 +38,34 @@ services:
       - traefik_data:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
   
-  nocodb-postgres:
-    image: postgres:16-alpine
-    container_name: nocodb-postgres
+  # nocodb-postgres:
+  #   image: postgres:16-alpine
+  #   container_name: nocodb-postgres
+  #   restart: unless-stopped
+  #   networks: ['n8n-core-net']
+  #   environment:
+  #     - POSTGRES_DB=${NOCODB_POSTGRES_DB}
+  #     - POSTGRES_USER=${NOCODB_POSTGRES_USER}
+  #     - POSTGRES_PASSWORD=${NOCODB_POSTGRES_PASSWORD}
+  #   volumes:
+  #     - nocodb_postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ['CMD-SHELL', 'pg_isready -U ${NOCODB_POSTGRES_USER} -d ${NOCODB_POSTGRES_DB}']
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 10
+
+  supabase-db:
+    image: supabase/postgres:15.8.1.085
+    container_name: supabase-db
     restart: unless-stopped
     networks: ['n8n-core-net']
     environment:
-      - POSTGRES_DB=${NOCODB_POSTGRES_DB}
-      - POSTGRES_USER=${NOCODB_POSTGRES_USER}
-      - POSTGRES_PASSWORD=${NOCODB_POSTGRES_PASSWORD}
-    volumes:
-      - nocodb_postgres_data:/var/lib/postgresql/data
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGPORT: ${POSTGRES_PORT}
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${NOCODB_POSTGRES_USER} -d ${NOCODB_POSTGRES_DB}']
+      test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -60,13 +76,13 @@ services:
     restart: unless-stopped
     networks: ['n8n-core-net']
     environment:
-      - NC_DB=pg://nocodb-postgres:5432?u=${NOCODB_POSTGRES_USER}&p=${NOCODB_POSTGRES_PASSWORD}&d=${NOCODB_POSTGRES_DB}
+      - NC_DB=pg://supabase-db:${POSTGRES_PORT}?u=postgres&p=${POSTGRES_PASSWORD}&d=${POSTGRES_DB}
       - NC_PUBLIC_URL=https://${NOCODB_HOST}
       - NC_DISABLE_TELE=true
     volumes:
       - nocodb_data:/usr/app/data
     depends_on:
-      nocodb-postgres:
+      supabase-db:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
@@ -75,21 +91,21 @@ services:
       - "traefik.http.routers.nocodb.tls.certresolver=le"
       - "traefik.http.services.nocodb.loadbalancer.server.port=8080"
 
-  baserow:
-    container_name: baserow
-    image: baserow/baserow:1.35.3
-    environment:
-      BASEROW_PUBLIC_URL: 'https://${BASEROW_HOST}'
-    volumes:
-      - baserow_data:/baserow/data
-    restart: unless-stopped
-    networks: ['n8n-core-net']
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.baserow.rule=Host(`${BASEROW_HOST}`)"
-      - "traefik.http.routers.baserow.entrypoints=websecure"
-      - "traefik.http.routers.baserow.tls.certresolver=le"
-      - "traefik.http.services.baserow.loadbalancer.server.port=80"
+  # baserow:
+  #   container_name: baserow
+  #   image: baserow/baserow:1.35.3
+  #   environment:
+  #     BASEROW_PUBLIC_URL: 'https://${BASEROW_HOST}'
+  #   volumes:
+  #     - baserow_data:/baserow/data
+  #   restart: unless-stopped
+  #   networks: ['n8n-core-net']
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.baserow.rule=Host(`${BASEROW_HOST}`)"
+  #     - "traefik.http.routers.baserow.entrypoints=websecure"
+  #     - "traefik.http.routers.baserow.tls.certresolver=le"
+  #     - "traefik.http.services.baserow.loadbalancer.server.port=80"
 
   minio:
     image: quay.io/minio/minio
