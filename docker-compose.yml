@@ -6,6 +6,7 @@ volumes:
   #baserow_data:
   nocodb_data:
   supabase_db_data:
+  db-config:
   #nocodb_postgres_data:
 
 networks:
