@@ -20,4 +20,5 @@ deploy.log
 
 # Database volumes and files
 volumes/db/data/
+volumes/db/nocodb.sql
 volumes/db/*.db
