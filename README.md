@@ -34,7 +34,7 @@ All external traffic terminates at Traefik v3 with automatic TLS certificates an
 
 _Indicative SaaS figures reflect commonly advertised mid-tier plans. Actual savings depend on usage._
 
-Runs on a single Hetzner CCX23 (EUR 24.49/month) with 20 TB traffic included. Enabling Hetzner backups adds 20% of the instance price (about EUR 4.90 extra).
+Runs on a single Hetzner ( EUR 9.9/month) with 20 TB traffic included. Enabling Hetzner backups adds 20% of the instance price (about EUR 4.90 extra).
 
 ---
 
@@ -266,17 +266,6 @@ tail -f deploy.log           # Cron deploy history
 
 ---
 
-## Production Hardening Checklist
-
-- Restrict SSH access (keys only, IP allow list)
-- Enable UFW; allow 80/443 and limit SSH to trusted IPs
-- Keep Postgres, MinIO, and NCA internal-only via Docker networks
-- Set up Hetzner snapshots and off-site backups
-- Rotate secrets regularly and re-deploy
-- Enable MinIO bucket versioning and lifecycle policies
-
----
-
 ## License
 
 MIT - make it your own.
@@ -285,8 +274,8 @@ MIT - make it your own.
 
 ## Links
 
-- Blog: https://kjetilfuras.com
-- LinkedIn: https://www.linkedin.com/in/kjetil-furas/
+- [Blog](https://kjetilfuras.com)
+- [LinkedIn](https://www.linkedin.com/in/kjetil-furas/)
 - [Skool community](https://www.skool.com/build-automate/about?ref=8708d3bb33f84fa2a3efd6b4ba05adb9)
 ---
 
