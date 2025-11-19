@@ -130,7 +130,7 @@ services:
       - "traefik.http.services.nca.loadbalancer.server.port=8080"
 
   kokoro-tts-cpu:
-    image: ghcr.io/remsky/kokoro-fastapi-cpu:v0.2.2
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:v0.2.4
     container_name: kokoro-tts-cpu
     networks: ['n8n-core-net']
     restart: unless-stopped
