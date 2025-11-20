@@ -35,7 +35,7 @@ services:
     volumes:
       - traefik_data:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
-  
+
   nocodb-postgres:
     image: postgres:16-alpine
     container_name: nocodb-postgres
@@ -85,6 +85,12 @@ services:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     labels:
       - "traefik.enable=true"
       # MinIO Console (Web UI on port 9001)
@@ -102,6 +108,29 @@ services:
       - "traefik.http.routers.minio-api.tls.certresolver=le"
       - "traefik.http.routers.minio-api.service=minio-api"
       - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for MinIO...';
+      sleep 5;
+      mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      mc mb myminio/$${MINIO_BUCKET_NAME} --ignore-existing;
+      mc anonymous set download myminio/$${MINIO_BUCKET_NAME};
+      echo \"MinIO bucket ($${MINIO_BUCKET_NAME}) setup complete\";
+      exit 0;
+      "
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
+    networks:  ['n8n-core-net']
+    restart: "no"
 
   nca-toolkit:
     image: stephengpope/no-code-architects-toolkit:latest
@@ -136,9 +165,9 @@ services:
     restart: unless-stopped
     # Kokoro is internal only - no Traefik labels
 
-  postgres-core:
+  n8n-core-postgres:
     image: postgres:16-alpine
-    hostname: postgres-core
+    container_name: n8n-core-postgres
     networks: ['n8n-core-net']
     restart: unless-stopped
     environment:
@@ -155,13 +184,12 @@ services:
 
   n8n-core:
     image: n8nio/n8n:latest
-    hostname: n8n-core
     container_name: n8n-core
     restart: unless-stopped
     networks: ['n8n-core-net']
     environment:
       - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_HOST=postgres-core
+      - DB_POSTGRESDB_HOST=n8n-core-postgres
       - DB_POSTGRESDB_USER=${POSTGRES_USER}
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
       - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
@@ -175,6 +203,8 @@ services:
       - N8N_RUNNERS_ENABLED=true
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
       - N8N_PORT=5678
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - N8N_GIT_NODE_DISABLE_BARE_REPOS=true
       - N8N_PROTOCOL=${N8N_PROTOCOL}
       - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
@@ -185,7 +215,7 @@ services:
       - ./n8n-core/backup:/backup
       - ./shared:/data/shared
     depends_on:
-      postgres-core:
+      n8n-core-postgres:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
