@@ -165,7 +165,7 @@ Set this up when you want hands-off deployments and encrypted secrets committed 
 
    ```bash
    cp .env secrets/production.env
-   sops --encrypt secrets/production.env > secrets/production.env.enc
+   sops --encrypt --input-type binary --output-type binary secrets/production.env > secrets/production.env.enc
    shred -u secrets/production.env
    ```
 
