@@ -5,6 +5,10 @@ volumes:
   minio_data:
   nocodb_data:
   nocodb_postgres_data:
+  postiz_postgres_data:
+  postiz_redis_data:
+  postiz_config:
+  postiz_uploads:
 
 networks:
   n8n-core-net:
@@ -118,17 +122,15 @@ services:
     entrypoint: >
       /bin/sh -c "
       echo 'Waiting for MinIO...';
-      sleep 5;
       mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
-      mc mb myminio/$${MINIO_BUCKET_NAME} --ignore-existing;
-      mc anonymous set download myminio/$${MINIO_BUCKET_NAME};
-      echo \"MinIO bucket ($${MINIO_BUCKET_NAME}) setup complete\";
-      exit 0;
+      mc mb myminio/$${NCA_BUCKET_NAME} --ignore-existing;
+      mc anonymous set download myminio/$${NCA_BUCKET_NAME};
+      echo \"MinIO bucket ($${NCA_BUCKET_NAME}) setup complete\";
       "
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
+      - NCA_BUCKET_NAME=${NCA_BUCKET_NAME}
     networks:  ['n8n-core-net']
     restart: "no"
 
@@ -203,7 +205,8 @@ services:
       - N8N_RUNNERS_ENABLED=true
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
       - N8N_PORT=5678
-      - TRUST_PROXY=true
+      - N8N_TRUST_PROXY=true
+      - N8N_PROXY_HOPS=1
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - N8N_GIT_NODE_DISABLE_BARE_REPOS=true
       - N8N_PROTOCOL=${N8N_PROTOCOL}
@@ -227,3 +230,56 @@ services:
       - "traefik.http.routers.n8n-webhooks.entrypoints=websecure"
       - "traefik.http.routers.n8n-webhooks.tls.certresolver=le"
       - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+
+  postiz-postgres:
+    image: postgres:17-alpine
+    container_name: postiz-postgres
+    restart: unless-stopped
+    networks: ['n8n-core-net']
+    environment:
+      - POSTGRES_PASSWORD=${POSTIZ_DB_PASSWORD}
+      - POSTGRES_USER=${POSTIZ_DB_USER}
+      - POSTGRES_DB=${POSTIZ_DB_NAME}
+    volumes:
+      - postiz_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTIZ_DB_USER} -d ${POSTIZ_DB_NAME}']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  postiz-redis:
+    image: redis:7.2
+    container_name: postiz-redis
+    restart: unless-stopped
+    networks: ['n8n-core-net']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - postiz_redis_data:/data
+
+  postiz:
+    image: ghcr.io/gitroomhq/postiz-app:latest
+    container_name: postiz
+    restart: unless-stopped
+    networks: ['n8n-core-net']
+    env_file: ./postiz.env
+    environment:
+      - TRUST_PROXY=true
+    volumes:
+      - postiz_config:/config/
+      - postiz_uploads:/uploads/
+    depends_on:
+      postiz-postgres:
+        condition: service_healthy
+      postiz-redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.postiz.rule=Host(`${POSTIZ_HOST}`)"
+      - "traefik.http.routers.postiz.entrypoints=websecure"
+      - "traefik.http.routers.postiz.tls.certresolver=le"
+      - "traefik.http.services.postiz.loadbalancer.server.port=5000"
