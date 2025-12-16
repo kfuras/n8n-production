@@ -185,7 +185,7 @@ services:
       retries: 10
 
   n8n-core:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:2.0.2
     container_name: n8n-core
     restart: unless-stopped
     networks: ['n8n-core-net']
@@ -210,6 +210,7 @@ services:
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - N8N_GIT_NODE_DISABLE_BARE_REPOS=true
       - N8N_PROTOCOL=${N8N_PROTOCOL}
+      - N8N_SKIP_AUTH_ON_OAUTH_CALLBACK=false
       - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
